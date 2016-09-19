@@ -1,23 +1,45 @@
-(function(){
+(function(factory){
+	if(typeof define ==="function"){
+		define("TouchPad",factory);
+	}else{
+		window.TouchPad = factory();
+	}
+}
+)(function(){
 	var tpads = [];
-	var TouchPad = function(_parent,_opts){
+	/**
+	 * This Library will create touchpads used for mobile interfacing for your application/game
+	 * @class
+	 * @param {object} inputs an object of properties
+	 * @returns {object} TouchPad object
+	 */
+	var TouchPad = function(opts){
 		var obj = {
-			init:function(_parent,_opts){
+			init:function(opts){
+				//add this touchpad to the tpads array
 				tpads.push(this);
-				this.parent = _parent;
+
+				var opts = opts || {};
+				this.parent = opts.parent || document.querySelector('body');
+				this.theme = this.theme || {};
+				this.cb = opts.cb || {};
+				this.cb.start || function(){};
+				this.cb.move || function(){};
+				this.cb.end || function(){};
 
 				//create touchpad pot.
-				this.pot = _opts.pot || {};
+				this.pot = opts.pot || {};
 				this.pot.type = "pot";
 				this.pot.id = this.pot.id || "tpad_"+tpads.length;
-				this.pot.width = this.pot.width || this.pot.radius || 75;
-				this.pot.height = this.pot.height || this.pot.radius || 75;
+				this.pot.width = this.pot.width || (this.pot.radius*2) || 75;
+				this.pot.height = this.pot.height || (this.pot.radius*2) || 75;
+				console.log(this.pot.width);
 				this.pot.dom = this.pot.dom ||  document.createElement("div");
 				this.pot.dom.setAttribute("class","tc_pot");
 				this.pot.dom.setAttribute("id",this.pot.id);
 
 				//set pot dom styles
-				this.pot.theme = this.setTheme(this.pot);
+				if(this.pot.theme)this.setTheme(this.pot);
 				this.pot.dom.style.transform = "translate(-50%, -50%)";
 				this.pot.dom.style.width = this.pot.width + "px";
 				this.pot.dom.style.height = this.pot.height + "px";
@@ -28,7 +50,7 @@
 				};
 
 				//create touchpad stick
-				this.stick = _opts.stick || {};
+				this.stick = opts.stick || {};
 				this.stick.type = "stick";
 				this.stick.width = this.stick.width || this.stick.radius || this.pot.width * 0.8;
 				this.stick.height = this.stick.height || this.stick.radius || this.pot.height * 0.8;
@@ -37,12 +59,12 @@
 				this.stick.dom.setAttribute("class","tc_stick");
 
 				//set stick dom styles
-				this.stick.theme = this.setTheme(this.stick);
+				if(this.stick.theme)this.setTheme(this.stick);
 				this.stick.dom.style.transform = "translate(-50%, -50%)";
 				this.stick.dom.style.width = this.stick.width + "px";
 				this.stick.dom.style.height = this.stick.height + "px";
 				this.stick.dom.style.position = "absolute";
-				this.resetStick();
+				this.centerStick();
 
 				//Append the pot and stick
 				this.pot.dom.appendChild(this.stick.dom);
@@ -58,18 +80,18 @@
 				e.preventDefault();
 				var touch = e.touches[0];
 				this.updateStick(touch.pageX - this.pot.dom.offsetLeft,touch.pageY - this.pot.dom.offsetTop);
+				this.cb.start({x:this.stick.x,y:this.stick.y,power:this.getPower(),rads:this.getStickAngle('rads'),degs:this.getStickAngle('degs')});
 			},
 			move:function(e){
 				e.preventDefault();
 				var touch  = e.touches[0];
 				this.updateStick(touch.pageX - this.pot.dom.offsetLeft,touch.pageY - this.pot.dom.offsetTop);
+				this.cb.move({x:this.stick.x,y:this.stick.y,power:this.getPower(),rads:this.getStickAngle('rads'),degs:this.getStickAngle('degs')});
 			},
 			end:function(e){
 				e.preventDefault();
-				this.resetStick();
-			},
-			resetStick:function(){
-				this.updateStick(0,0);
+				this.centerStick();
+				this.cb.end({x:this.stick.x,y:this.stick.y,power:this.getPower(),rads:this.getStickAngle('rads'),degs:this.getStickAngle('degs')});
 			},
 			updateStick:function(x,y){
 				var dist = Math.sqrt(x*x+y*y);
@@ -80,9 +102,20 @@
 				this.stick.dom.style.left = (this.pot.center.x + this.stick.x)  + "px";
 				this.stick.dom.style.top = 	(this.pot.center.y + this.stick.y)  + "px";
 			},
-			getStickDistance:function(){
-				return this.stick.x * this.stick.x + this.stick.y * this.stick.y;
+			/**
+			 * Will center the sticks position
+			 */
+			centerStick:function(){
+				this.updateStick(0,0);
 			},
+			getStickDistance:function(){
+				return Math.sqrt(this.stick.x * this.stick.x + this.stick.y * this.stick.y);
+			},
+			/**
+			* Will return the sticks angle from center in "rads"(radians) or "degs"(degrees)
+			* @param {string} unit to return rads or degs
+			* @return {number} angle in radians or degrees
+			 */
 			getStickAngle:function(unit){
 				var rads =  Math.atan2(this.stick.y,this.stick.x);
 				switch(unit){
@@ -92,6 +125,10 @@
 						return rads * (180/Math.PI);
 				}
 			},
+			/*
+			* Will return the a value based on the distance of the stick
+			* @returns {number} returns a value from 0 to 1
+			 */
 			getPower:function(){
 				return this.getStickDistance()/this.stick.maxRadius || 0;
 			},
@@ -126,7 +163,7 @@
 				this.pot.style.display = 'none';
 			}
 		};
-		obj.init(_parent,_opts);
+		obj.init(opts);
 
 		return obj;
 	};
@@ -138,10 +175,7 @@
 	TouchPad.themes = {
 		simple:{
 			pot:{
-				props:{
-					width:100,
-					height:100,
-				},
+				props:{},
 				style:{
 					borderRadius: "50%",
 					border: "1px solid black",
@@ -164,5 +198,5 @@
 		callback();
 	};
 
-	window.TouchPad = TouchPad;
-})();
+	return TouchPad;
+});
