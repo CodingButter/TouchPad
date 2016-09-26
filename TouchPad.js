@@ -23,9 +23,9 @@
 				this.parent = opts.parent || document.querySelector('body');
 				this.theme = this.theme || {};
 				this.cb = opts.cb || {};
-				this.cb.start || function(){};
-				this.cb.move || function(){};
-				this.cb.end || function(){};
+				this.cb.start = this.cb.start || function(){};
+				this.cb.move = this.cb.move || function(){};
+				this.cb.end = this.cb.end || function(){};
 
 				//create touchpad pot.
 				this.pot = opts.pot || {};
